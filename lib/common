@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# -*- mode: bash; tab-width: 4; -*-
+# vim: ts=4 sw=8 ft=bash noet
+
+find_dependencies() {
+    chroot=$1
+    location=$2
+    package=$3
+    download=$4
+    if [[ ! -f ${chroot}/var/tmp/${package//\//-} ]]
+    then
+        sudo touch ${chroot}/var/tmp/${package//\//-}
+        dependencies=$(sudo ${chroot}/sandbox /opt/${location}/bin/bmake -C /content/pkgsrc/${package} show-depends ${env_vars} | cut -d/ -f3,4)
+        build_dependencies=$(sudo ${chroot}/sandbox /opt/${location}/bin/bmake -C /content/pkgsrc/${package} show-depends VARNAME=BUILD_DEPENDS ${env_vars} | cut -d/ -f3,4)
+        tool_dependencies=$(sudo ${chroot}/sandbox /opt/${location}/bin/bmake -C /content/pkgsrc/${package} show-depends VARNAME=TOOL_DEPENDS ${env_vars} | cut -d/ -f3,4)
+        if [[ ${download} = "true" ]]
+        then
+            deps=$(for i in ${dependencies} ${build_dependencies} ${tool_dependencies}; do find_dependencies ${chroot} ${location} $i ${download}; done)
+            echo ${deps} ${package}
+        else
+            echo ${dependencies} ${build_dependencies} ${tool_dependencies}
+        fi
+    fi
+}
+
+build_package() {
+    location=$1
+    package=$2
+    meta=$3
+    if [[ -d /content/pkgsrc/${package} ]]
+    then
+        cd /content/pkgsrc/${package}
+        tarball=`/opt/${location}/bin/bmake show-var VARNAME=PKGNAME ${env_vars}`.tgz
+        packages=`/opt/${location}/bin/bmake show-var VARNAME=PACKAGES ${env_vars}`/All/
+        if [[ -f ${packages}${tarball} ]]
+        then
+            echo ${tarball} already exists
+        else
+            echo Building ${tarball}
+            /opt/${location}/bin/bmake clean ${env_vars}
+            if [[ ${meta} = "true" ]]
+            then
+                /opt/${location}/bin/bmake distinfo ${env_vars}
+                if [[ -d patches ]]
+                then
+                    /opt/${location}/bin/bmake mps ${env_vars}
+                fi
+                /opt/${location}/bin/bmake stage-install ${env_vars}
+                oldmd5=`md5sum PLIST`
+                /opt/${location}/bin/bmake print-PLIST ${env_vars} > PLIST
+                newmd5=`md5sum PLIST`
+                if [[ ! ${oldmd5} = ${newmd5} ]]
+                then
+                    /opt/${location}/bin/bmake install-clean
+                fi
+            fi
+            /opt/${location}/bin/bmake package ${env_vars}
+            /opt/${location}/bin/bmake clean ${env_vars}
+        fi
+    else
+        echo "failed to find package"
+    fi
+}
+
+install_package() {
+    location=$1
+    package=$2
+    meta=$3
+    if [[ -d /content/pkgsrc/${package} ]]
+    then
+        cd /content/pkgsrc/${package}
+        tarball=`/opt/${location}/bin/bmake show-var VARNAME=PKGNAME ${env_vars}`.tgz
+        packages=`/opt/${location}/bin/bmake show-var VARNAME=PACKAGES ${env_vars}`/All/
+        if [[ -f ${packages}${tarball} ]]
+        then
+            echo ${tarball} already exists
+            sudo /opt/${location}/sbin/pkg_add $PACKAGES$TARBALL
+        else
+            echo Building ${tarball}
+            /opt/${location}/bin/bmake clean ${env_vars}
+            if [[ ${meta} = "true" ]]
+            then
+                /opt/${location}/bin/bmake distinfo ${env_vars}
+                if [[ -d patches ]]
+                then
+                    /opt/${location}/bin/bmake mps ${env_vars}
+                fi
+                /opt/${location}/bin/bmake stage-install ${env_vars}
+                oldmd5=`md5sum PLIST`
+                /opt/${location}/bin/bmake print-PLIST ${env_vars} > PLIST
+                newmd5=`md5sum PLIST`
+                if [[ ! ${oldmd5} = ${newmd5} ]]
+                then
+                    /opt/${location}/bin/bmake install-clean
+                fi
+            fi
+            /opt/${location}/bin/bmake package ${env_vars}
+            /opt/${location}/bin/bmake clean ${env_vars}
+            sudo /opt/${location}/sbin/pkg_add $PACKAGES$TARBALL
+        fi
+    else
+        echo "failed to find package"
+    fi
+}
+
+publish_file() {
+	curl \
+		-X POST \
+		-H "Key: ${NANOBOX_SECRET}" \
+		--data-binary @/content/packages/pkgsrc/${PLATFORM}/All/${FILE}
+		https://pkgsrc.nanobox.io/${NANOBOX_USER}/${NANOBOX_PROJECT}/${PLATFORM}/${FILE}
+}
+
+update_summary() {
+	curl \
+		-X PUT \
+		-H "Key: ${NANOBOX_SECRET}" \
+		pkgsrc.nanobox.io/${NANOBOX_USER}/${NANOBOX_PROJECT}/${PLATFORM}
+}
