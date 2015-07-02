@@ -1,3 +1,6 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
 Vagrant.configure('2') do |config|
   config.vm.provider 'virtualbox' do |v|
     v.memory = 4096
@@ -10,18 +13,18 @@ Vagrant.configure('2') do |config|
     ubuntu.vm.box = 'ubuntu/trusty64'
   end
 
-  config.vm.define "SmartOS" do |smartos|
-    smartos.vm.box = 'livinginthepast/smartos-base64'
-    smartos.vm.network "private_network", ip: "33.33.33.10"
-    smartos.vm.communicator = 'smartos'
-    smartos.ssh.insert_key = false
-    smartos.global_zone.platform_image = 'latest'
-    smartos.zone.name = 'base64'
-    smartos.zone.brand = 'joyent'
-    smartos.zone.image = '0edf00aa-0562-11e5-b92f-879647d45790'
-    smartos.zone.memory = 4096
-    smartos.zone.disk_size = 20
-  end
+  # config.vm.define "SmartOS" do |smartos|
+  #   smartos.vm.box = 'livinginthepast/smartos-base64'
+  #   smartos.vm.network "private_network", ip: "33.33.33.10"
+  #   smartos.vm.communicator = 'smartos'
+  #   smartos.ssh.insert_key = false
+  #   smartos.global_zone.platform_image = 'latest'
+  #   smartos.zone.name = 'base64'
+  #   smartos.zone.brand = 'joyent'
+  #   smartos.zone.image = '0edf00aa-0562-11e5-b92f-879647d45790'
+  #   smartos.zone.memory = 4096
+  #   smartos.zone.disk_size = 20
+  # end
 
   nanobox_user = ENV["NANOBOX_USER"]
   nanobox_base_project = ENV["NANOBOX_BASE_PROJECT"] || "base"

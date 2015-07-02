@@ -3,3 +3,5 @@
 # vim: ts=4 sw=8 ft=bash noet
 
 . $(dirname "$0")/../lib/common
+
+publish_all ${NANOBOX_BASE_SECRET} ${NANOBOX_USER} ${NANOBOX_BASE_PROJECT} Linux

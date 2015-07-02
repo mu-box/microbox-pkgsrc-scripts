@@ -1,3 +1,12 @@
 #!/usr/bin/env bash
 # -*- mode: bash; tab-width: 4; -*-
 # vim: ts=4 sw=8 ft=bash noet
+
+. $(dirname "$0")/../lib/common
+
+package=$1
+meta=$2
+download=$3
+env_vars=$4
+
+build /opt/pbulk ${package} ${meta} ${download} ${NANOBOX_USER} pbulk Linux ${env_vars}

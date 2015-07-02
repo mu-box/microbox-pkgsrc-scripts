@@ -2,17 +2,64 @@
 # -*- mode: bash; tab-width: 4; -*-
 # vim: ts=4 sw=8 ft=bash noet
 
+# things related to building a bootstrap
+
+publish_bootstrap() {
+    secret=$1
+    user=$2
+    project=$3
+    platform=$4
+    echo $file
+    curl \
+        -X POST \
+        -H "Key: ${secret}" \
+        --data-binary \@/content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz \
+        https://pkgsrc.nanobox.io/${user}/${project}/${platform}/bootstrap.tar.gz
+    echo ""
+}
+
+# things related to building a package
+
+create_chroot() {
+    chroot=$1
+    project=$2
+    platform=$3
+    sudo mkdir -p /chroot
+    sudo ${location}/sbin/mksandbox --without-pkgsrc --rwdirs=/content,/home ${chroot}
+    if [ ! -f /content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz ]
+    then
+        wget http://pkgsrc.nanobox.io/${user}/${project}/${platform}/bootstrap.tar.gz -O /content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz || true
+    fi
+    sudo tar -xzf /content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz -C ${chroot}
+}
+
+remove_chroot() {
+    chroot=$1
+    if [[ -d ${chroot} ]]
+    then
+        if [ ! $(mount | grep -c ${chroot}/) = "0" ]
+        then
+            sudo ${chroot}/sandbox umount
+        fi
+        if [ $(mount | grep -c ${chroot}/) = "0" ]
+        then
+            sudo rm -rf ${chroot}
+        fi
+    fi
+}
+
 find_dependencies() {
     chroot=$1
     location=$2
     package=$3
     download=$4
+    env_vars=$5
     if [[ ! -f ${chroot}/var/tmp/${package//\//-} ]]
     then
         sudo touch ${chroot}/var/tmp/${package//\//-}
-        dependencies=$(sudo ${chroot}/sandbox /opt/${location}/bin/bmake -C /content/pkgsrc/${package} show-depends ${env_vars} | cut -d/ -f3,4)
-        build_dependencies=$(sudo ${chroot}/sandbox /opt/${location}/bin/bmake -C /content/pkgsrc/${package} show-depends VARNAME=BUILD_DEPENDS ${env_vars} | cut -d/ -f3,4)
-        tool_dependencies=$(sudo ${chroot}/sandbox /opt/${location}/bin/bmake -C /content/pkgsrc/${package} show-depends VARNAME=TOOL_DEPENDS ${env_vars} | cut -d/ -f3,4)
+        dependencies=$(sudo ${chroot}/sandbox ${location}/bin/bmake -C /content/pkgsrc/${package} show-depends ${env_vars} | cut -d/ -f3,4)
+        build_dependencies=$(sudo ${chroot}/sandbox ${location}/bin/bmake -C /content/pkgsrc/${package} show-depends VARNAME=BUILD_DEPENDS ${env_vars} | cut -d/ -f3,4)
+        tool_dependencies=$(sudo ${chroot}/sandbox ${location}/bin/bmake -C /content/pkgsrc/${package} show-depends VARNAME=TOOL_DEPENDS ${env_vars} | cut -d/ -f3,4)
         if [[ ${download} = "true" ]]
         then
             deps=$(for i in ${dependencies} ${build_dependencies} ${tool_dependencies}; do find_dependencies ${chroot} ${location} $i ${download}; done)
@@ -27,35 +74,36 @@ build_package() {
     location=$1
     package=$2
     meta=$3
+    env_vars=$4
     if [[ -d /content/pkgsrc/${package} ]]
     then
         cd /content/pkgsrc/${package}
-        tarball=`/opt/${location}/bin/bmake show-var VARNAME=PKGNAME ${env_vars}`.tgz
-        packages=`/opt/${location}/bin/bmake show-var VARNAME=PACKAGES ${env_vars}`/All/
+        tarball=`${location}/bin/bmake show-var VARNAME=PKGNAME ${env_vars}`.tgz
+        packages=`${location}/bin/bmake show-var VARNAME=PACKAGES ${env_vars}`/All/
         if [[ -f ${packages}${tarball} ]]
         then
             echo ${tarball} already exists
         else
             echo Building ${tarball}
-            /opt/${location}/bin/bmake clean ${env_vars}
+            ${location}/bin/bmake clean ${env_vars}
             if [[ ${meta} = "true" ]]
             then
-                /opt/${location}/bin/bmake distinfo ${env_vars}
+                ${location}/bin/bmake distinfo ${env_vars}
                 if [[ -d patches ]]
                 then
-                    /opt/${location}/bin/bmake mps ${env_vars}
+                    ${location}/bin/bmake mps ${env_vars}
                 fi
-                /opt/${location}/bin/bmake stage-install ${env_vars}
+                ${location}/bin/bmake stage-install ${env_vars}
                 oldmd5=`md5sum PLIST`
-                /opt/${location}/bin/bmake print-PLIST ${env_vars} > PLIST
+                ${location}/bin/bmake print-PLIST ${env_vars} > PLIST
                 newmd5=`md5sum PLIST`
                 if [[ ! ${oldmd5} = ${newmd5} ]]
                 then
-                    /opt/${location}/bin/bmake install-clean
+                    ${location}/bin/bmake install-clean
                 fi
             fi
-            /opt/${location}/bin/bmake package ${env_vars}
-            /opt/${location}/bin/bmake clean ${env_vars}
+            ${location}/bin/bmake package ${env_vars}
+            ${location}/bin/bmake clean ${env_vars}
         fi
     else
         echo "failed to find package"
@@ -66,54 +114,130 @@ install_package() {
     location=$1
     package=$2
     meta=$3
+    env_vars=$4
     if [[ -d /content/pkgsrc/${package} ]]
     then
         cd /content/pkgsrc/${package}
-        tarball=`/opt/${location}/bin/bmake show-var VARNAME=PKGNAME ${env_vars}`.tgz
-        packages=`/opt/${location}/bin/bmake show-var VARNAME=PACKAGES ${env_vars}`/All/
+        tarball=`${location}/bin/bmake show-var VARNAME=PKGNAME ${env_vars}`.tgz
+        packages=`${location}/bin/bmake show-var VARNAME=PACKAGES ${env_vars}`/All/
         if [[ -f ${packages}${tarball} ]]
         then
             echo ${tarball} already exists
-            sudo /opt/${location}/sbin/pkg_add $PACKAGES$TARBALL
+            sudo ${location}/sbin/pkg_add $PACKAGES$TARBALL
         else
             echo Building ${tarball}
-            /opt/${location}/bin/bmake clean ${env_vars}
+            ${location}/bin/bmake clean ${env_vars}
             if [[ ${meta} = "true" ]]
             then
-                /opt/${location}/bin/bmake distinfo ${env_vars}
+                ${location}/bin/bmake distinfo ${env_vars}
                 if [[ -d patches ]]
                 then
-                    /opt/${location}/bin/bmake mps ${env_vars}
+                    ${location}/bin/bmake mps ${env_vars}
                 fi
-                /opt/${location}/bin/bmake stage-install ${env_vars}
+                ${location}/bin/bmake stage-install ${env_vars}
                 oldmd5=`md5sum PLIST`
-                /opt/${location}/bin/bmake print-PLIST ${env_vars} > PLIST
+                ${location}/bin/bmake print-PLIST ${env_vars} > PLIST
                 newmd5=`md5sum PLIST`
                 if [[ ! ${oldmd5} = ${newmd5} ]]
                 then
-                    /opt/${location}/bin/bmake install-clean
+                    ${location}/bin/bmake install-clean
                 fi
             fi
-            /opt/${location}/bin/bmake package ${env_vars}
-            /opt/${location}/bin/bmake clean ${env_vars}
-            sudo /opt/${location}/sbin/pkg_add $PACKAGES$TARBALL
+            ${location}/bin/bmake package ${env_vars}
+            ${location}/bin/bmake clean ${env_vars}
+            sudo ${location}/sbin/pkg_add $PACKAGES$TARBALL
         fi
     else
         echo "failed to find package"
     fi
 }
 
+build() {
+    location=$1
+    package=$2
+    meta=$3
+    download=$4
+    user=$5
+    project=$6
+    platform=$7
+    env_vars=$8
+
+    chroot=/chroot/build${location//\//-}-${package//\//-}
+    install_package ${location} lang/gcc47 false
+    create_chroot ${chroot} ${project}
+
+    package_dir=$(sudo ${chroot}/sandbox ${location}/bin/bmake -C /content/pkgsrc/${package} show-var VARNAME=PACKAGES ${env_vars})
+    depends=$(find_dependencies ${chroot} ${location} ${package} ${download} ${env_vars})
+    for d in ${depends}
+    do
+        dep_package=$(sudo ${chroot}/sandbox ${location}/bin/bmake -C /content/pkgsrc/${d} show-var VARNAME=PKGNAME ${env_vars})
+        if [[ ${download} = "true" && ! -f ${package_dir}/All/${dep_package}.tgz ]]
+        then
+            wget http://pkgsrc.nanobox.io/${user}/${project}/${platform}/${dep_package}.tgz -O ${package_dir}/All/${dep_package}.tgz || true
+        fi
+        if [[ ! -d /chroot/build${location//\//-}-${d//\//-} && ! -f ${package_dir}/All/${dep_package}.tgz ]]
+        then
+            build ${location} ${d} ${meta} ${download} ${project} ${env_vars}
+        fi
+    done
+    build_package ${chroot} ${location} ${package} ${meta} ${env_vars}
+    remove_chroot ${chroot}
+}
+
+# things related to publishing
+
 publish_file() {
-	curl \
-		-X POST \
-		-H "Key: ${NANOBOX_SECRET}" \
-		--data-binary @/content/packages/pkgsrc/${PLATFORM}/All/${FILE}
-		https://pkgsrc.nanobox.io/${NANOBOX_USER}/${NANOBOX_PROJECT}/${PLATFORM}/${FILE}
+    secret=$1
+    user=$2
+    project=$3
+    platform=$4
+    file=$5
+    echo $file
+    curl \
+        -X POST \
+        -H "Key: ${secret}" \
+        --data-binary \@/content/packages/pkgsrc/${project}/${platform}/All/${file} \
+        https://pkgsrc.nanobox.io/${user}/${project}/${platform}/${file}
+    echo ""
 }
 
 update_summary() {
-	curl \
-		-X PUT \
-		-H "Key: ${NANOBOX_SECRET}" \
-		pkgsrc.nanobox.io/${NANOBOX_USER}/${NANOBOX_PROJECT}/${PLATFORM}
+    secret=$1
+    user=$2
+    project=$3
+    platform=$4
+    curl \
+        -X PUT \
+        -H "Key: ${secret}" \
+        pkgsrc.nanobox.io/${user}/${project}/${platform}
+}
+
+publish_all() {
+    secret=$1
+    user=$2
+    project=$3
+    platform=$4
+    uploaded=$(curl -s https://pkgsrc.nanobox.io/${user}/${project}/${platform}/ | sed 's/<a href=".*">//g;s,</a>.*$,,g;s/<.*>//g')
+    # echo ${uploaded}
+    # uploaded=""
+    for file in $(ls /content/packages/pkgsrc/${project}/${platform}/All/*)
+    do
+        file=$(basename ${file})
+        if [[ ! ${uploaded} =~ ${file} ]]
+        then
+            publish_file ${secret} ${user} ${project} ${platform} ${file}
+        fi
+    done
+    for file in ${uploaded}
+    do
+        if  [[ "${file}" =~ ".tgz" ]]
+        then
+            if [ ! -f /content/packages/pkgsrc/${project}/${platform}/All/${file} ]
+            then
+                echo ${file}
+                curl -s https://pkgsrc.nanobox.io/${user}/${project}/${platform}/${file} -o /content/packages/pkgsrc/${project}/${platform}/All/${file}
+            fi
+        fi
+    done
+    update_summary ${secret} ${user} ${project} ${platform}
 }
