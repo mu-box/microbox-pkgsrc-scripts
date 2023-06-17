@@ -4,4 +4,4 @@
 
 . $(dirname "$0")/../lib/common
 
-publish_all ${NANOBOX_BASE_SECRET} ${NANOBOX_USER} ${NANOBOX_BASE_PROJECT} Linux
+publish_all ${MICROBOX_BASE_SECRET} ${MICROBOX_USER} ${MICROBOX_BASE_PROJECT} Linux

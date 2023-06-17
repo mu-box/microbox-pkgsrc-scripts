@@ -26,25 +26,25 @@ Vagrant.configure('2') do |config|
   #   smartos.zone.disk_size = 20
   # end
 
-  nanobox_user = ENV["NANOBOX_USER"]
-  nanobox_base_project = ENV["NANOBOX_BASE_PROJECT"] || "base"
-  nanobox_gonano_project = ENV["NANOBOX_GONANO_PROJECT"] || "gonano"
-  nanobox_base_secret = ENV["NANOBOX_#{nanobox_user.upcase}_#{nanobox_base_project.upcase}_SECRET"]
-  nanobox_gonano_secret = ENV["NANOBOX_#{nanobox_user.upcase}_#{nanobox_gonano_project.upcase}_SECRET"]
+  microbox_user = ENV["MICROBOX_USER"]
+  microbox_base_project = ENV["MICROBOX_BASE_PROJECT"] || "base"
+  microbox_gomicro_project = ENV["MICROBOX_GOMICRO_PROJECT"] || "gomicro"
+  microbox_base_secret = ENV["MICROBOX_#{microbox_user.upcase}_#{microbox_base_project.upcase}_SECRET"]
+  microbox_gomicro_secret = ENV["MICROBOX_#{microbox_user.upcase}_#{microbox_gomicro_project.upcase}_SECRET"]
 
   config.vm.synced_folder "../distfiles", "/content/distfiles", type: "nfs"
   config.vm.synced_folder "../packages", "/content/packages", type: "nfs"
   config.vm.synced_folder "../pkgsrc-lite", "/content/pkgsrc", type: "nfs"
   config.vm.synced_folder "../pkgsrc-base", "/content/pkgsrc/base", type: "nfs"
-  config.vm.synced_folder "../pkgsrc-gonano", "/content/pkgsrc/gonano", type: "nfs"
+  config.vm.synced_folder "../pkgsrc-gomicro", "/content/pkgsrc/gomicro", type: "nfs"
 
   $script = <<-SCRIPT
   echo # Vagrant environment variables > /etc/profile.d/vagrant.sh
-  echo export NANOBOX_USER=#{nanobox_user} >> /etc/profile.d/vagrant.sh
-  echo export NANOBOX_BASE_PROJECT=#{nanobox_base_project} >> /etc/profile.d/vagrant.sh
-  echo export NANOBOX_BASE_SECRET=#{nanobox_base_secret} >> /etc/profile.d/vagrant.sh
-  echo export NANOBOX_GONANO_PROJECT=#{nanobox_gonano_project} >> /etc/profile.d/vagrant.sh
-  echo export NANOBOX_GONANO_SECRET=#{nanobox_gonano_secret} >> /etc/profile.d/vagrant.sh
+  echo export MICROBOX_USER=#{microbox_user} >> /etc/profile.d/vagrant.sh
+  echo export MICROBOX_BASE_PROJECT=#{microbox_base_project} >> /etc/profile.d/vagrant.sh
+  echo export MICROBOX_BASE_SECRET=#{microbox_base_secret} >> /etc/profile.d/vagrant.sh
+  echo export MICROBOX_GOMICRO_PROJECT=#{microbox_gomicro_project} >> /etc/profile.d/vagrant.sh
+  echo export MICROBOX_GOMICRO_SECRET=#{microbox_gomicro_secret} >> /etc/profile.d/vagrant.sh
   echo umask 022 >> /etc/profile.d/vagrant.sh
   chmod +x /etc/profile.d/vagrant.sh
   SCRIPT

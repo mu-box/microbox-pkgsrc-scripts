@@ -9,4 +9,4 @@ meta=$2
 download=$3
 env_vars=$4
 
-build /opt/pbulk ${package} ${meta} ${download} ${NANOBOX_USER} pbulk Linux ${env_vars}
+build /opt/pbulk ${package} ${meta} ${download} ${MICROBOX_USER} pbulk Linux ${env_vars}

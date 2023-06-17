@@ -14,7 +14,7 @@ publish_bootstrap() {
         -X POST \
         -H "Key: ${secret}" \
         --data-binary \@/content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz \
-        https://pkgsrc.nanobox.io/${user}/${project}/${platform}/bootstrap.tar.gz
+        https://pkgsrc.microbox.cloud/${user}/${project}/${platform}/bootstrap.tar.gz
     echo ""
 }
 
@@ -28,7 +28,7 @@ create_chroot() {
     sudo ${location}/sbin/mksandbox --without-pkgsrc --rwdirs=/content,/home ${chroot}
     if [ ! -f /content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz ]
     then
-        wget http://pkgsrc.nanobox.io/${user}/${project}/${platform}/bootstrap.tar.gz -O /content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz || true
+        wget https://pkgsrc.microbox.cloud/${user}/${project}/${platform}/bootstrap.tar.gz -O /content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz || true
     fi
     sudo tar -xzf /content/packages/pkgsrc/${project}/${platform}/bootstrap.tar.gz -C ${chroot}
 }
@@ -173,7 +173,7 @@ build() {
         dep_package=$(sudo ${chroot}/sandbox ${location}/bin/bmake -C /content/pkgsrc/${d} show-var VARNAME=PKGNAME ${env_vars})
         if [[ ${download} = "true" && ! -f ${package_dir}/All/${dep_package}.tgz ]]
         then
-            wget http://pkgsrc.nanobox.io/${user}/${project}/${platform}/${dep_package}.tgz -O ${package_dir}/All/${dep_package}.tgz || true
+            wget https://pkgsrc.microbox.cloud/${user}/${project}/${platform}/${dep_package}.tgz -O ${package_dir}/All/${dep_package}.tgz || true
         fi
         if [[ ! -d /chroot/build${location//\//-}-${d//\//-} && ! -f ${package_dir}/All/${dep_package}.tgz ]]
         then
@@ -197,7 +197,7 @@ publish_file() {
         -X POST \
         -H "Key: ${secret}" \
         --data-binary \@/content/packages/pkgsrc/${project}/${platform}/All/${file} \
-        https://pkgsrc.nanobox.io/${user}/${project}/${platform}/${file}
+        https://pkgsrc.microbox.cloud/${user}/${project}/${platform}/${file}
     echo ""
 }
 
@@ -209,7 +209,7 @@ update_summary() {
     curl \
         -X PUT \
         -H "Key: ${secret}" \
-        pkgsrc.nanobox.io/${user}/${project}/${platform}
+        pkgsrc.microbox.cloud/${user}/${project}/${platform}
 }
 
 publish_all() {
@@ -217,7 +217,7 @@ publish_all() {
     user=$2
     project=$3
     platform=$4
-    uploaded=$(curl -s https://pkgsrc.nanobox.io/${user}/${project}/${platform}/ | sed 's/<a href=".*">//g;s,</a>.*$,,g;s/<.*>//g')
+    uploaded=$(curl -s https://pkgsrc.microbox.cloud/${user}/${project}/${platform}/ | sed 's/<a href=".*">//g;s,</a>.*$,,g;s/<.*>//g')
     # echo ${uploaded}
     # uploaded=""
     for file in $(ls /content/packages/pkgsrc/${project}/${platform}/All/*)
@@ -235,7 +235,7 @@ publish_all() {
             if [ ! -f /content/packages/pkgsrc/${project}/${platform}/All/${file} ]
             then
                 echo ${file}
-                curl -s https://pkgsrc.nanobox.io/${user}/${project}/${platform}/${file} -o /content/packages/pkgsrc/${project}/${platform}/All/${file}
+                curl -s https://pkgsrc.microbox.cloud/${user}/${project}/${platform}/${file} -o /content/packages/pkgsrc/${project}/${platform}/All/${file}
             fi
         fi
     done

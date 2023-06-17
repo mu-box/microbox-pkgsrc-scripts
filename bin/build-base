@@ -9,4 +9,4 @@ meta=$2
 download=$3
 env_vars=$4
 
-build /data ${package} ${meta} ${download} ${NANOBOX_USER} ${NANOBOX_BASE_PROJECT} Linux ${env_vars}
+build /data ${package} ${meta} ${download} ${MICROBOX_USER} ${MICROBOX_BASE_PROJECT} Linux ${env_vars}
